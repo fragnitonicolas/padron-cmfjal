@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAuth, usePuedeEditar } from '@/lib/auth'
+import { ModalCambiarPassword } from '@/features/auth/ModalCambiarPassword'
 import logo from '@/assets/logo.jpg'
 
 const enlaceClase = ({ isActive }: { isActive: boolean }) =>
@@ -13,6 +15,7 @@ export function AppLayout() {
   const { perfil, cerrarSesion } = useAuth()
   const puedeEditar = usePuedeEditar()
   const esAdmin = perfil?.rol === 'admin'
+  const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false)
 
   return (
     <div className="flex min-h-screen bg-brand-50">
@@ -65,8 +68,14 @@ export function AppLayout() {
         <div className="border-t border-brand-800 p-3">
           <p className="truncate px-2 text-xs text-brand-300">{perfil?.nombre_completo}</p>
           <button
-            onClick={cerrarSesion}
+            onClick={() => setModalPasswordAbierto(true)}
             className="mt-1 w-full rounded-md px-3 py-2 text-left text-sm text-brand-100 hover:bg-brand-800/60"
+          >
+            Cambiar contraseña
+          </button>
+          <button
+            onClick={cerrarSesion}
+            className="w-full rounded-md px-3 py-2 text-left text-sm text-brand-100 hover:bg-brand-800/60"
           >
             Cerrar sesión
           </button>
@@ -77,6 +86,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+      {modalPasswordAbierto && <ModalCambiarPassword onCerrar={() => setModalPasswordAbierto(false)} />}
     </div>
   )
 }

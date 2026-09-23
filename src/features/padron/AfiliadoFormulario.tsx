@@ -63,6 +63,7 @@ export function AfiliadoFormulario({ valoresIniciales, afiliadoIdActual, onGuard
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors },
   } = useForm<ValoresFormulario>({
     resolver: zodResolver(esquema),
@@ -74,6 +75,18 @@ export function AfiliadoFormulario({ valoresIniciales, afiliadoIdActual, onGuard
     listarCargos().then(setCargos).catch(() => {})
     obtenerTodosLivianos().then(setTodosLivianos).catch(() => {})
   }, [])
+
+  // Los <select> de cargo/organismo se pueblan de forma asíncrona; si sus
+  // opciones no existen todavía en el DOM cuando react-hook-form intenta
+  // aplicar los valores iniciales, quedan sin seleccionar. Al terminar de
+  // cargar ambos catálogos, se reaplican los valores iniciales para que el
+  // <select> encuentre su <option> correspondiente.
+  useEffect(() => {
+    if (valoresIniciales && organismos.length > 0 && cargos.length > 0) {
+      reset(valoresIniciales)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organismos, cargos])
 
   const apellido = watch('apellido')
   const nombres = watch('nombres')

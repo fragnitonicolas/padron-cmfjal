@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { resolverEmailDeUsuario } from '@/lib/validaciones'
 import { Boton } from '@/components/ui/Boton'
 import { CampoTexto } from '@/components/ui/Campo'
 import { Alerta } from '@/components/ui/Basicos'
@@ -22,7 +23,7 @@ export function LoginPage() {
     e.preventDefault()
     setEnviando(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email: resolverEmailDeUsuario(email), password })
     if (error) {
       setError('Email o contraseña incorrectos.')
       setEnviando(false)
@@ -60,8 +61,8 @@ export function LoginPage() {
         {!modoRecuperar ? (
           <form onSubmit={iniciarSesion} className="flex flex-col gap-4">
             <CampoTexto
-              etiqueta="Email"
-              type="email"
+              etiqueta="Usuario o email"
+              type="text"
               autoComplete="username"
               required
               value={email}

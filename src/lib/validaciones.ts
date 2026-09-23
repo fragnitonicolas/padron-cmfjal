@@ -1,3 +1,13 @@
+/** Dominio interno para usuarios sin email real (creados con solo un nombre de usuario). */
+export const DOMINIO_USUARIO_INTERNO = 'cmfjal.local'
+
+/** Si el valor ingresado no tiene "@", se interpreta como nombre de usuario interno y se le agrega el dominio. */
+export function resolverEmailDeUsuario(valor: string): string {
+  const limpio = valor.trim()
+  if (limpio.includes('@')) return limpio
+  return `${limpio.toLowerCase()}@${DOMINIO_USUARIO_INTERNO}`
+}
+
 export function normalizarTexto(texto: string): string {
   return texto
     .normalize('NFD')
