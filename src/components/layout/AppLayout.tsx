@@ -18,8 +18,8 @@ export function AppLayout() {
   const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-brand-50">
-      <aside className="flex w-64 flex-shrink-0 flex-col bg-brand-900 no-imprimir">
+    <div className="flex h-screen overflow-hidden bg-brand-50">
+      <aside className="flex h-full w-64 flex-shrink-0 flex-col overflow-hidden bg-brand-900 no-imprimir">
         <div className="flex items-center gap-3 border-b border-brand-800 px-4 py-5">
           <img src={logo} alt="Escudo del Colegio" className="h-12 w-12 rounded-full bg-white object-contain p-1" />
           <div className="leading-tight">
@@ -44,11 +44,6 @@ export function AppLayout() {
           <NavLink to="/estadisticas" className={enlaceClase}>
             Estadísticas
           </NavLink>
-          {puedeEditar && (
-            <NavLink to="/electoral" className={enlaceClase}>
-              Padrón electoral
-            </NavLink>
-          )}
           {puedeEditar && (
             <NavLink to="/calidad-de-datos" className={enlaceClase}>
               Calidad de datos

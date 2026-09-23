@@ -225,38 +225,6 @@ export type Database = {
         }
         Relationships: []
       }
-      configuracion: {
-        Row: {
-          actualizado_en: string
-          actualizado_por: string | null
-          clave: string
-          descripcion: string | null
-          valor: Json
-        }
-        Insert: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          clave: string
-          descripcion?: string | null
-          valor: Json
-        }
-        Update: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          clave?: string
-          descripcion?: string | null
-          valor?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "configuracion_actualizado_por_fkey"
-            columns: ["actualizado_por"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       importacion_filas: {
         Row: {
           afiliado_id: string | null

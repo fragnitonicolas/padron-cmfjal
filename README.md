@@ -1,13 +1,13 @@
 # Padrón de Afiliados — Colegio de la Magistratura y la Función Judicial de Avellaneda-Lanús (CMFJAL)
 
-Aplicación web para administrar el padrón de afiliados del Colegio: alta, edición, baja lógica, importación desde Excel, estadísticas, padrón electoral, calidad de datos y auditoría completa de cambios.
+Aplicación web para administrar el padrón de afiliados del Colegio: alta, edición, baja lógica, importación desde Excel, estadísticas, calidad de datos y auditoría completa de cambios.
 
 ## Stack
 
 - **Frontend**: Vite + React 19 + TypeScript + Tailwind CSS v4 (plugin nativo de Vite, sin `tailwind.config.js`).
 - **Backend**: Supabase (Postgres + Auth + Row Level Security + Edge Functions).
 - **Hosting**: Netlify (build automático desde `main`), con `netlify.toml` incluido.
-- **Librerías destacadas**: `react-router-dom`, `@supabase/supabase-js`, `react-hook-form` + `zod`, `exceljs` (lectura/escritura de Excel), `jspdf` + `jspdf-autotable` (constancias y padrón electoral en PDF).
+- **Librerías destacadas**: `react-router-dom`, `@supabase/supabase-js`, `react-hook-form` + `zod`, `exceljs` (lectura/escritura de Excel), `jspdf` (constancia de afiliación en PDF).
 
 ## Estructura
 
@@ -19,13 +19,13 @@ src/
   features/importacion/ asistente de importación de Excel
   features/usuarios/   alta/gestión de usuarios internos (vía Edge Function)
   features/dashboard/  estadísticas y cumpleaños del mes
-  features/electoral/  generación del padrón electoral configurable
   features/calidad/    panel de duplicados y campos incompletos
   features/auditoria/  visor del log de auditoría
   lib/                 cliente Supabase, validaciones (DNI/CUIL/email/teléfono), exportación, PDF
 supabase/
-  (las migraciones están aplicadas directamente contra el proyecto Supabase vía MCP;
-   ver la sección "Migraciones" más abajo sobre cómo replicarlas con la CLI de Supabase)
+  migrations/          esquema completo versionado (tablas, RLS, funciones, RPC)
+  functions/
+    admin-usuarios/     Edge Function para alta/gestión de usuarios internos
 ```
 
 ## 1. Instalación local
@@ -53,10 +53,12 @@ npm run dev
 Este proyecto ya tiene un backend Supabase creado (org `cmfjal`, proyecto `cmfjal-padron`, región `sa-east-1`). Para replicar el esquema en un proyecto nuevo (por ejemplo, para un ambiente de staging propio):
 
 1. Creá un proyecto en [supabase.com](https://supabase.com).
-2. Instalá la [CLI de Supabase](https://supabase.com/docs/guides/cli) y logueate (`supabase login`).
-3. Los archivos de migración SQL completos (extensiones, tablas, RLS, funciones, triggers, catálogos y datos iniciales) fueron aplicados directamente contra el proyecto vía el MCP de Supabase durante el desarrollo. Si necesitás reconstruir el esquema desde cero, pedí el volcado de `supabase db dump --schema public` del proyecto actual y aplicalo con `supabase db push`, o contactá para obtener los `.sql` de migración originales.
-4. Copiá la URL del proyecto y la clave `anon`/`publishable` a tu `.env`.
-5. Activá manualmente en el dashboard (**Authentication → Policies → Password**) la protección de contraseñas filtradas (*Leaked password protection*, integración con HaveIBeenPwned) — no se puede activar vía SQL/API pública, requiere un toggle en el dashboard.
+2. Instalá la [CLI de Supabase](https://supabase.com/docs/guides/cli), logueate (`supabase login`) y vinculá el proyecto (`supabase link --project-ref tu-ref`).
+3. Aplicá el esquema versionado en `supabase/migrations/` con `supabase db push`. Incluye extensiones, tablas, RLS, funciones, triggers y el RPC `actualizar_afiliado`. Los catálogos de organismos/cargos y la carga inicial del padrón **no** están en las migraciones (dependen de un Excel real) — se cargan desde la pantalla "Importación de Excel" una vez desplegada la app (ver sección 3).
+4. Desplegá la Edge Function: `supabase functions deploy admin-usuarios`.
+5. Copiá la URL del proyecto y la clave `anon`/`publishable` a tu `.env`.
+6. Activá manualmente en el dashboard (**Authentication → Policies → Password**) la protección de contraseñas filtradas (*Leaked password protection*, integración con HaveIBeenPwned) — no se puede activar vía SQL/API pública, requiere un toggle en el dashboard.
+7. Creá el primer administrador (ver sección 5).
 
 ## 3. Carga inicial del Excel
 
@@ -84,6 +86,14 @@ Ya existe un usuario administrador inicial creado directamente en la base (email
 
 Para altas posteriores de usuarios: **Panel → Usuarios** (solo admin) permite invitar por email, asignar rol (`admin` / `editor` / `lector`) y activar/desactivar cuentas. No hay registro público: todo usuario se crea desde ahí.
 
+### Cuentas operativas sin email real (login por nombre de usuario)
+
+Además del ingreso por email, el login acepta un **nombre de usuario simple** (sin `@`): internamente se resuelve como `<usuario>@cmfjal.local`. Esto permite dar de alta cuentas de uso diario para personas o áreas del Colegio que no necesitan (o no tienen) una casilla de correo propia — por ejemplo, cuentas compartidas por rol. Estas cuentas:
+
+- Se crean igual que cualquier otra directamente en la base (no reciben el email de invitación, porque `@cmfjal.local` no es un dominio real).
+- **No pueden usar "¿Olvidaste tu contraseña?"** (no hay a dónde enviar el correo). En su lugar, cualquier usuario logueado puede cambiar su propia contraseña desde **"Cambiar contraseña"** en el menú lateral.
+- Si un admin necesita resetear la contraseña de una de estas cuentas sin que la persona la sepa de antemano, debe hacerlo directamente desde el dashboard de Supabase (Authentication → Users) hasta que se decida agregar esa acción al panel de Usuarios.
+
 ## 6. Decisiones de diseño y supuestos (importante)
 
 ### Datos de origen — limitaciones del Excel
@@ -108,16 +118,12 @@ El Excel original **solo contenía 6 columnas**: `NRO`, `DNI`, `LEGAJO`, `APELLI
 
 El isotipo del Colegio (proporcionado como imagen) es **monocromático** (tinta negra sobre blanco/transparente): un sello circular clásico sin colores propios para extraer. Se derivó una paleta institucional propia —azul "justicia" sobrio (`brand-*`) con un acento dorado discreto (`gold-*`)— coherente con el carácter de un sello judicial tradicional, en lugar de inventar colores sin base. Tipografía serif (Source Serif 4) para títulos institucionales, sans-serif (Inter) para datos y formularios.
 
-### Padrón electoral
-
-La generación del padrón electoral **no asume ningún criterio estatutario**. Los criterios de inclusión (qué estados de afiliado y qué categorías habilitan a votar) son completamente configurables por un administrador desde el panel "Padrón electoral" (guardados en la tabla `configuracion`, clave `criterios_padron_electoral`), con el valor por defecto más conservador (`estado = activo`, todas las categorías). **Definí estos criterios según el estatuto real del Colegio** antes de usar la lista para un proceso electoral efectivo.
-
 ## 7. Seguridad
 
 Los datos del padrón incluyen información personal de magistrados y funcionarios (nombre, DNI, domicilio, email, teléfono) alcanzada por la Ley 25.326 de Protección de Datos Personales. Medidas implementadas:
 
 - **Sin registro público**: el login (`/ingresar`) es la única puerta de entrada; los usuarios se crean exclusivamente desde el panel de administración (Edge Function `admin-usuarios`, que usa la `service_role` key solo del lado del servidor, nunca expuesta al frontend).
-- **Roles**: `admin` (todo, incluida gestión de usuarios y configuración electoral), `editor` (alta/edición/baja de afiliados, importación, ve auditoría), `lector` (solo lectura y exportación). Aplicados con RLS en absolutamente todas las tablas (`profiles`, `organismos`, `organismo_alias`, `cargos`, `cargo_alias`, `afiliados`, `auditoria`, `importaciones`, `importacion_filas`, `configuracion`).
+- **Roles**: `admin` (todo, incluida gestión de usuarios), `editor` (alta/edición/baja de afiliados, importación, ve auditoría), `lector` (solo lectura y exportación). Aplicados con RLS en absolutamente todas las tablas (`profiles`, `organismos`, `organismo_alias`, `cargos`, `cargo_alias`, `afiliados`, `auditoria`, `importaciones`, `importacion_filas`).
 - **Auditoría inmutable**: un trigger genérico (`fn_auditoria_generica`) registra automáticamente cada alta y modificación de `afiliados` y `profiles` en la tabla `auditoria` (usuario, fecha, valores anteriores y nuevos en JSON, motivo). La tabla `auditoria` no tiene políticas de `INSERT`/`UPDATE`/`DELETE` para ningún rol vía API — solo el trigger, ejecutado con privilegios del dueño de la tabla, puede escribir en ella.
 - **Motivo obligatorio**: toda modificación de un afiliado existente pasa por la función `actualizar_afiliado(id, cambios, motivo)`, que rechaza la operación si no se indica un motivo (encolado en la misma transacción vía `set_config('app.motivo_cambio', ...)` para que el trigger de auditoría lo capture).
 - **Baja lógica**: no existe ninguna vía en la interfaz para eliminar físicamente un afiliado. "Dar de baja" solo cambia `estado` a `'baja'` y registra fecha y motivo; el registro y su historial se conservan siempre.
@@ -134,11 +140,12 @@ Además de lo pedido explícitamente (padrón con búsqueda/filtros/orden/pagina
 - **Constancia de afiliación en PDF**: generación de un PDF institucional con el logo, útil para trámites individuales de los afiliados.
 - **Tablero de estadísticas**: conteos por estado/categoría/fuero/organismo y detección de campos de contacto faltantes — da visibilidad inmediata sobre la calidad y composición del padrón.
 - **Cumpleaños del mes**: lista de afiliados activos que cumplen años en el mes en curso, exportable — es una necesidad típica de gestión de un colegio profesional.
-- **Padrón electoral configurable**: exportable a CSV/Excel/PDF, con criterios de inclusión editables por un admin (ver sección 6).
 - **Panel de calidad de datos**: detección automática de posibles duplicados (por DNI idéntico o nombre muy similar, distancia de Levenshtein) y conteo de campos incompletos.
 - **Visor de auditoría**: además del historial por afiliado en su ficha, un panel global filtrable por tabla y usuario.
 
-No se implementaron (por decisión, no por omisión): generación automática de "reglas" del padrón electoral no provistas por el usuario, y un mecanismo de respaldo/export completo de la base más allá de las exportaciones CSV/Excel ya disponibles (Supabase ya provee backups automáticos a nivel de proyecto).
+No se implementó un mecanismo de respaldo/export completo de la base más allá de las exportaciones CSV/Excel ya disponibles (Supabase ya provee backups automáticos a nivel de proyecto).
+
+> Se evaluó incluir un generador de padrón electoral configurable, pero se descartó por pedido explícito: la funcionalidad se solapaba con el padrón principal (que ya permite filtrar por estado/categoría y exportar la vista filtrada) y no aportaba valor adicional suficiente para justificar una pantalla aparte.
 
 ## 9. Roles y permisos (resumen)
 
@@ -148,7 +155,6 @@ No se implementaron (por decisión, no por omisión): generación automática de
 | Alta / edición / baja de afiliados | ✅ | ✅ | ❌ |
 | Importar Excel | ✅ | ✅ | ❌ |
 | Ver auditoría | ✅ | ✅ | ❌ |
-| Editar criterios del padrón electoral | ✅ | ❌ (solo ver/generar) | ❌ |
 | Gestionar usuarios | ✅ | ❌ | ❌ |
 
 ## 10. Verificación

@@ -14,7 +14,6 @@ const ImportacionPage = lazy(() => import('@/features/importacion/ImportacionPag
 const UsuariosPage = lazy(() => import('@/features/usuarios/UsuariosPage').then((m) => ({ default: m.UsuariosPage })))
 const EstadisticasPage = lazy(() => import('@/features/dashboard/EstadisticasPage').then((m) => ({ default: m.EstadisticasPage })))
 const AuditoriaPage = lazy(() => import('@/features/auditoria/AuditoriaPage').then((m) => ({ default: m.AuditoriaPage })))
-const ElectoralPage = lazy(() => import('@/features/electoral/ElectoralPage').then((m) => ({ default: m.ElectoralPage })))
 const CalidadDatosPage = lazy(() => import('@/features/calidad/CalidadDatosPage').then((m) => ({ default: m.CalidadDatosPage })))
 
 export default function App() {
@@ -59,14 +58,6 @@ export default function App() {
             }
           />
           <Route path="/estadisticas" element={<EstadisticasPage />} />
-          <Route
-            path="/electoral"
-            element={
-              <ProtectedRoute rolesPermitidos={['admin', 'editor']}>
-                <ElectoralPage />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/calidad-de-datos"
             element={
